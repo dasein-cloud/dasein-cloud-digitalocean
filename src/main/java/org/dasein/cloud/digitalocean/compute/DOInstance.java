@@ -240,34 +240,43 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     @Override
     public @Nonnull Iterable<VirtualMachineProduct> listProducts(String machineImageId, VirtualMachineProductFilterOptions options) throws InternalException, CloudException {
         MachineImage image = getProvider().getComputeServices().getImageSupport().getImage(machineImageId);
-        String cacheName = "ALL";
-        if( image != null ) {
-            cacheName = image.getArchitecture().name();
+        //check the requested image existence
+        if( image == null ) {
+            throw new CloudException("Image " + machineImageId + " could not be found");
         }
-        Cache<VirtualMachineProduct> cache = Cache.getInstance(getProvider(), "products" + cacheName, VirtualMachineProduct.class, CacheLevel.REGION, new TimePeriod<Day>(1, TimePeriod.DAY));
+        // load product cache
+        Cache<VirtualMachineProduct> cache = Cache.getInstance(getProvider(), "products", VirtualMachineProduct.class, CacheLevel.REGION, new TimePeriod<Day>(1, TimePeriod.DAY));
         Iterable<VirtualMachineProduct> products = cache.get(getContext());
-        if( products != null && products.iterator().hasNext() ) {
-            return products;
-        }
-
-        List<VirtualMachineProduct> list = new ArrayList<VirtualMachineProduct>();
-        //Perform DigitalOcean query
-        Sizes availableSizes = (Sizes)DigitalOceanModelFactory.getModel(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.SIZES);
-
-        if (availableSizes != null) {
-            for( Size s : availableSizes.getSizes() ) {
-                VirtualMachineProduct product = toProduct(s);
-                if( product != null ) {
-                    list.add(product);
+        // if no cache exists lets create and load it
+        if( products == null || !products.iterator().hasNext() ) {
+            List<VirtualMachineProduct> list = new ArrayList<VirtualMachineProduct>();
+            //Perform DigitalOcean query
+            Sizes availableSizes = (Sizes)DigitalOceanModelFactory.getModel(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.SIZES);
+            if (availableSizes != null) {
+                for( Size s : availableSizes.getSizes() ) {
+                    VirtualMachineProduct product = toProduct(s);
+                    if( product != null ) {
+                        list.add(product);
+                    }
                 }
+                //save to cache
+                cache.put(getContext(), list);
+                products = list;
             }
-            cache.put(getContext(), list);
+            else {
+                logger.error("No product could be found, " + getProvider().getCloudName() + " provided no data for their sizes API.");
+                throw new CloudException("No product could be found.");
+            }
         }
-        else {
-            logger.error("No product could be found, " + getProvider().getCloudName() + " provided no data for their sizes API.");
-            throw new CloudException("No product could be found.");
-        }
-        return list;
+        //resulting list filtered for the selected image
+        List<VirtualMachineProduct> results = new ArrayList<VirtualMachineProduct>();
+        for (VirtualMachineProduct product : products) {
+            //only the products with enough disk size returned
+            if(  product.getRootVolumeSize().longValue() >= image.getMinimumDiskSizeGb() ){
+                    results.add(product);
+            }
+         }
+         return results;
     }
 
 	@Override
