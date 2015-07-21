@@ -30,6 +30,8 @@ public class Image implements DigitalOceanRestModel {
     @SerializedName("public")
 	Boolean isPublic;
 	String[] regions;
+    @SerializedName("min_disk_size")
+    long minDiskSize;
 	
 	public String getId() {
 		return this.id;
@@ -70,5 +72,8 @@ public class Image implements DigitalOceanRestModel {
 	public void setDistribution(String b) {
 		this.distribution = b;
 	}
+
+    public long getMinDiskSize() { return this.minDiskSize; }
+    public void setMinDiskSize(long l) { this.minDiskSize = l; }
 	
 }

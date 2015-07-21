@@ -301,6 +301,7 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
         if( image.getPublic() ) {
             machineImage.sharedWithPublic();
         }
+        machineImage.setMinimumDiskSizeGb(image.getMinDiskSize());
         return machineImage;
     }
 
