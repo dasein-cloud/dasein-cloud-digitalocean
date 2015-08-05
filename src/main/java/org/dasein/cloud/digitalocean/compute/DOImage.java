@@ -45,11 +45,11 @@ import org.dasein.util.JiteratorPopulator;
 import org.dasein.util.PopulatorThread;
 import org.dasein.util.uom.time.Minute;
 import org.dasein.util.uom.time.Hour;
+import org.dasein.util.uom.time.Second;
 import org.dasein.util.uom.time.TimePeriod;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-//import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -329,9 +329,19 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
     @Override
     public @Nullable MachineImage getImage(@Nonnull String providerImageId) throws CloudException, InternalException {
         APITrace.begin(provider, "Image.getImage");
+        Cache<MachineImage> cache = Cache.getInstance(provider, "image-" + providerImageId, MachineImage.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(15, TimePeriod.SECOND) );
+        Collection<MachineImage> images = ( Collection<MachineImage> ) cache.get(getContext());
+
         try {
-            Image image = (Image) getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGE, providerImageId);
-            return toImage(image);
+            if (images != null) {
+                return images.iterator().next();
+            } else {
+                MachineImage image = toImage((Image) getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGE, providerImageId));
+                images = new ArrayList<MachineImage>();
+                images.add(image);
+                cache.put(getContext(), images);
+                return image;
+            }
         }
         catch( CloudException e ) {
             if( e.getHttpCode() == 404 ) {
