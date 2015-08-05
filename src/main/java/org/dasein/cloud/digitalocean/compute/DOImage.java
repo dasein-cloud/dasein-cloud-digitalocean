@@ -44,11 +44,12 @@ import org.dasein.util.Jiterator;
 import org.dasein.util.JiteratorPopulator;
 import org.dasein.util.PopulatorThread;
 import org.dasein.util.uom.time.Minute;
+import org.dasein.util.uom.time.Hour;
 import org.dasein.util.uom.time.TimePeriod;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.lang.reflect.Array;
+//import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -201,7 +202,12 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
             if( !options.getWithAllRegions() ) {
                 cacheName = regionId;
             }
-            Cache<MachineImage> cache = Cache.getInstance(provider, "images" + ( publicImagesOnly ? "pub" : "prv" ) + "-" + cacheName, MachineImage.class, CacheLevel.REGION_ACCOUNT, new TimePeriod<Minute>(5, TimePeriod.MINUTE));
+            Cache<MachineImage> cache = null;
+            if (publicImagesOnly) {     // PUB
+                cache = Cache.getInstance(provider, "images-pub-" + cacheName, MachineImage.class, CacheLevel.REGION_ACCOUNT, new TimePeriod<Hour>(2, TimePeriod.HOUR) );
+            } else {                    // PRIV
+                cache = Cache.getInstance(provider, "images-prv-" + cacheName, MachineImage.class, CacheLevel.REGION_ACCOUNT, new TimePeriod<Minute>(5, TimePeriod.MINUTE));
+            }
             Collection<MachineImage> cachedImages = ( Collection<MachineImage> ) cache.get(getContext());
             if( cachedImages != null ) {
                 return cachedImages;
