@@ -24,6 +24,7 @@ import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -199,9 +200,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
                 if (d != null) {
                     VirtualMachine server = toVirtualMachine(d);
                     if (server != null && server.getProviderVirtualMachineId().equals(instanceId)) {
-                        vms = new ArrayList<VirtualMachine>();
-                        vms.add(server);
-                        cache.put(getContext(), vms);
+                        cache.put(getContext(), Collections.singletonList(server));
                         return server;
                     }
                 }
