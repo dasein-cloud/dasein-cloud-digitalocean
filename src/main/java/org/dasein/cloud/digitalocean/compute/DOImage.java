@@ -337,9 +337,7 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
                 return images.iterator().next();
             } else {
                 MachineImage image = toImage((Image) getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGE, providerImageId));
-                images = new ArrayList<MachineImage>();
-                images.add(image);
-                cache.put(getContext(), images);
+                cache.put(getContext(), Collections.singletonList(image));
                 return image;
             }
         }
