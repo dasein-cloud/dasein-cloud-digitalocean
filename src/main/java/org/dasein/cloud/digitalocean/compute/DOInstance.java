@@ -408,31 +408,31 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         try {
             if (vms != null) {
                 return vms;
-            } else {
-                List<VirtualMachine> results = new ArrayList<VirtualMachine>();
-
-                Droplets droplets = (Droplets) DigitalOceanModelFactory.getModel(getProvider(), DROPLETS);
-                int page = 1;
-                int total = droplets.getTotal();
-                while( droplets.getDroplets().size() > 0 ) {
-                    for( Droplet d : droplets.getDroplets() ) {
-                        VirtualMachine vm = toVirtualMachine(d);
-                        if( (options == null || options.matches(vm)) &&
-                                vm.getProviderRegionId().equalsIgnoreCase(getContext().getRegionId()) ) {
-                            results.add(vm);
-                        }
-                        else {
-                            total --;
-                        }
-                    }
-                    if( total <= 0 || total == results.size() ) {
-                        break;
-                    }
-                    droplets = (Droplets) getModel(getProvider(), DROPLETS, ++page);
-                }
-                cache.put(getContext(), results);
-                return results;
             }
+
+            List<VirtualMachine> results = new ArrayList<VirtualMachine>();
+
+            Droplets droplets = (Droplets) DigitalOceanModelFactory.getModel(getProvider(), DROPLETS);
+            int page = 1;
+            int total = droplets.getTotal();
+            while( droplets.getDroplets().size() > 0 ) {
+                for( Droplet d : droplets.getDroplets() ) {
+                    VirtualMachine vm = toVirtualMachine(d);
+                    if( (options == null || options.matches(vm)) &&
+                            vm.getProviderRegionId().equalsIgnoreCase(getContext().getRegionId()) ) {
+                        results.add(vm);
+                    }
+                    else {
+                        total --;
+                    }
+                }
+                if( total <= 0 || total == results.size() ) {
+                    break;
+                }
+                droplets = (Droplets) getModel(getProvider(), DROPLETS, ++page);
+            }
+            cache.put(getContext(), results);
+            return results;
         } finally {
             APITrace.end();
         }
