@@ -365,29 +365,30 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         try {
             if (resourceStatus != null) {
                 return resourceStatus;
-            } else {
-                List<ResourceStatus> results = new ArrayList<ResourceStatus>();
-                Droplets droplets = (Droplets)DigitalOceanModelFactory.getModel(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLETS );
-                int page = 1;
-                int total = droplets.getTotal();
-                while( droplets.getDroplets().size() > 0 ) {
-                    for( Droplet d : droplets.getDroplets() ) {
-                        ResourceStatus status = toStatus(d);
-                        if( status != null ) {
-                            results.add(status);
-                        }
-                        else {
-                            total --;
-                        }
-                    }
-                    if( total <= 0 || total == results.size() ) {
-                        break;
-                    }
-                    droplets = (Droplets) getModel(getProvider(), DROPLETS, ++page);
-                }
-                cache.put(getContext(), results);
-                return results;
             }
+
+            List<ResourceStatus> results = new ArrayList<ResourceStatus>();
+            Droplets droplets = (Droplets)DigitalOceanModelFactory.getModel(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLETS );
+            int page = 1;
+            int total = droplets.getTotal();
+            while( droplets.getDroplets().size() > 0 ) {
+                for( Droplet d : droplets.getDroplets() ) {
+                    ResourceStatus status = toStatus(d);
+                    if( status != null ) {
+                        results.add(status);
+                    }
+                    else {
+                        total --;
+                    }
+                }
+                if( total <= 0 || total == results.size() ) {
+                    break;
+                }
+                droplets = (Droplets) getModel(getProvider(), DROPLETS, ++page);
+            }
+            cache.put(getContext(), results);
+            return results;
+            
         } finally {
             APITrace.end();
         }
