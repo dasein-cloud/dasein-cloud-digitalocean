@@ -19,14 +19,50 @@
 
 package org.dasein.cloud.digitalocean.compute;
 
-import org.apache.log4j.Logger;
-import org.dasein.cloud.*;
-import org.dasein.cloud.compute.*;
-import org.dasein.cloud.digitalocean.DigitalOcean;
-import org.dasein.cloud.digitalocean.models.*;
-import org.dasein.cloud.digitalocean.models.actions.droplet.*;
-import org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory;
 import static org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLETS;
+import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getModel;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.log4j.Logger;
+import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
+import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.ProviderContext;
+import org.dasein.cloud.ResourceStatus;
+import org.dasein.cloud.compute.AbstractVMSupport;
+import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.MachineImage;
+import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.compute.VMFilterOptions;
+import org.dasein.cloud.compute.VMLaunchOptions;
+import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VirtualMachineProduct;
+import org.dasein.cloud.compute.VirtualMachineProductFilterOptions;
+import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.digitalocean.DigitalOcean;
+import org.dasein.cloud.digitalocean.models.Action;
+import org.dasein.cloud.digitalocean.models.Actions;
+import org.dasein.cloud.digitalocean.models.Droplet;
+import org.dasein.cloud.digitalocean.models.Droplets;
+import org.dasein.cloud.digitalocean.models.Network;
+import org.dasein.cloud.digitalocean.models.Size;
+import org.dasein.cloud.digitalocean.models.Sizes;
+import org.dasein.cloud.digitalocean.models.actions.droplet.Destroy;
+import org.dasein.cloud.digitalocean.models.actions.droplet.Reboot;
+import org.dasein.cloud.digitalocean.models.actions.droplet.Resize;
+import org.dasein.cloud.digitalocean.models.actions.droplet.Start;
+import org.dasein.cloud.digitalocean.models.actions.droplet.Stop;
+import org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.RawAddress;
 import org.dasein.cloud.util.APITrace;
@@ -36,15 +72,8 @@ import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Megabyte;
 import org.dasein.util.uom.storage.Storage;
 import org.dasein.util.uom.time.Day;
+import org.dasein.util.uom.time.Second;
 import org.dasein.util.uom.time.TimePeriod;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.servlet.http.HttpServletResponse;
-import java.io.UnsupportedEncodingException;
-import java.util.*;
-
-import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getModel;
 
 
 public class DOInstance extends AbstractVMSupport<DigitalOcean> {
@@ -160,15 +189,23 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     @Override
     public @Nullable VirtualMachine getVirtualMachine(@Nonnull String instanceId) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "getVirtualMachine");
+        Cache<VirtualMachine> cache = Cache.getInstance(getProvider(), "vm-" + instanceId, VirtualMachine.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(30, TimePeriod.SECOND) );
+        Collection<VirtualMachine> vms = ( Collection<VirtualMachine> ) cache.get(getContext());
+
         try {
-            Droplet d = (Droplet) DigitalOceanModelFactory.getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLET, instanceId);
-            if (d != null) {
-                VirtualMachine server = toVirtualMachine(d);
-                if (server != null && server.getProviderVirtualMachineId().equals(instanceId)) {
-                    return server;
+            if (vms != null) {
+                return vms.iterator().next();
+            } else {
+                Droplet d = (Droplet) DigitalOceanModelFactory.getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLET, instanceId);
+                if (d != null) {
+                    VirtualMachine server = toVirtualMachine(d);
+                    if (server != null && server.getProviderVirtualMachineId().equals(instanceId)) {
+                        cache.put(getContext(), Collections.singletonList(server));
+                        return server;
+                    }
                 }
+                return null;
             }
-            return null;
         } catch( CloudException e ) {
             if( e.getHttpCode() == HttpServletResponse.SC_NOT_FOUND) {
                 return null;
@@ -329,7 +366,15 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     @Override
     public @Nonnull Iterable<ResourceStatus> listVirtualMachineStatus() throws InternalException, CloudException {
         APITrace.begin(getProvider(), "listVirtualMachineStatus");
+
+        Cache<ResourceStatus> cache = Cache.getInstance(getProvider(), "vm-status-list", ResourceStatus.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(60, TimePeriod.SECOND) );
+        Collection<ResourceStatus> resourceStatus = ( Collection<ResourceStatus> ) cache.get(getContext());
+
         try {
+            if (resourceStatus != null) {
+                return resourceStatus;
+            }
+
             List<ResourceStatus> results = new ArrayList<ResourceStatus>();
             Droplets droplets = (Droplets)DigitalOceanModelFactory.getModel(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLETS );
             int page = 1;
@@ -349,7 +394,9 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
                 }
                 droplets = (Droplets) getModel(getProvider(), DROPLETS, ++page);
             }
+            cache.put(getContext(), results);
             return results;
+            
         } finally {
             APITrace.end();
         }
@@ -363,7 +410,14 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     @Override
     public @Nonnull Iterable<VirtualMachine> listVirtualMachines(@Nullable VMFilterOptions options) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "listVirtualMachines");
+        Cache<VirtualMachine> cache = Cache.getInstance(getProvider(), "vm-list", VirtualMachine.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(60, TimePeriod.SECOND) );
+        Collection<VirtualMachine> vms = ( Collection<VirtualMachine> ) cache.get(getContext());
+
         try {
+            if (vms != null) {
+                return vms;
+            }
+
             List<VirtualMachine> results = new ArrayList<VirtualMachine>();
 
             Droplets droplets = (Droplets) DigitalOceanModelFactory.getModel(getProvider(), DROPLETS);
@@ -384,8 +438,8 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
                     break;
                 }
                 droplets = (Droplets) getModel(getProvider(), DROPLETS, ++page);
-
             }
+            cache.put(getContext(), results);
             return results;
         } finally {
             APITrace.end();

@@ -44,11 +44,12 @@ import org.dasein.util.Jiterator;
 import org.dasein.util.JiteratorPopulator;
 import org.dasein.util.PopulatorThread;
 import org.dasein.util.uom.time.Minute;
+import org.dasein.util.uom.time.Hour;
+import org.dasein.util.uom.time.Second;
 import org.dasein.util.uom.time.TimePeriod;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -201,23 +202,36 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
             if( !options.getWithAllRegions() ) {
                 cacheName = regionId;
             }
-            Cache<MachineImage> cache = Cache.getInstance(provider, "images" + ( publicImagesOnly ? "pub" : "prv" ) + "-" + cacheName, MachineImage.class, CacheLevel.REGION_ACCOUNT, new TimePeriod<Minute>(5, TimePeriod.MINUTE));
-            Collection<MachineImage> cachedImages = ( Collection<MachineImage> ) cache.get(getContext());
-            if( cachedImages != null ) {
-                return cachedImages;
+            Cache<Image> cache = null;
+            if (publicImagesOnly) {     // PUB
+                cache = Cache.getInstance(provider, "images-pub-" + cacheName, Image.class, CacheLevel.REGION_ACCOUNT, new TimePeriod<Hour>(2, TimePeriod.HOUR) );
+            } else {                    // PRIV
+                cache = Cache.getInstance(provider, "images-prv-" + cacheName, Image.class, CacheLevel.REGION_ACCOUNT, new TimePeriod<Minute>(5, TimePeriod.MINUTE));
             }
-            final List<MachineImage> results = new ArrayList<MachineImage>();
-            final org.dasein.cloud.digitalocean.models.rest.DigitalOcean cmd = publicImagesOnly ? org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGES_PUBLIC : org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGES;
+            Collection<Image> cachedImages = ( Collection<Image> ) cache.get(getContext());
 
-            Images images = (Images) getModel(getProvider(), cmd);
-            int total = images.getTotal();
-            int page = 1;
-            while( images.getImages().size() > 0 ) { // let's check >0 just in case
-                for( Image image : images.getImages() ) {
+            if (null == cachedImages) { // empty cache.
+                cachedImages = new ArrayList<Image>();
+                final org.dasein.cloud.digitalocean.models.rest.DigitalOcean cmd = publicImagesOnly ? org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGES_PUBLIC : org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGES;
+
+                Images images = (Images) getModel(getProvider(), cmd);
+                int page = 1;
+                while ( images.getImages().size() > 0 ) {
+                    for( Image image : images.getImages() ) {
+                        cachedImages.add(image);
+                    }
+                    images = (Images) getModel(getProvider(), cmd, ++page);
+                }
+                cache.put(getContext(), cachedImages);
+            }
+
+            final List<MachineImage> results = new ArrayList<MachineImage>();
+
+            if ( cachedImages.size() > 0 ) { // let's check >0 just in case
+                for( Image image : cachedImages ) {
                     MachineImage machineImage = toImage(image);
                     // check if image regions match the requested region if any
                     if( !options.getWithAllRegions() && image.getRegions().length > 0 && !Arrays.asList(image.getRegions()).contains(getContext().getRegionId()) ) {
-                        total--;
                         continue;
                     }
 
@@ -225,7 +239,7 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
                         if( options.getWithAllRegions() ) {
                             // explode image to all regions, update total count
                             int regions = image.getRegions().length;
-                            total += regions - 1;
+
                             for( String region : image.getRegions() ) {
                                 machineImage.setProviderRegionId(region);
                                 results.add(machineImage);
@@ -233,20 +247,13 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
                             }
                         }
                         else {
-                            // only add for one region as requested
+                         // only add for one region as requested
                             results.add(machineImage);
                         }
                     }
-                    else {
-                        total--; // remove the defective image from the count
-                    }
                 }
-                if( total <= 0 || total == results.size() ) {
-                    break;
-                }
-                images = (Images) getModel(getProvider(), cmd, ++page);
             }
-            cache.put(getContext(), results);
+
             return results;
         }
         catch (Throwable e) {
@@ -325,9 +332,17 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
     @Override
     public @Nullable MachineImage getImage(@Nonnull String providerImageId) throws CloudException, InternalException {
         APITrace.begin(provider, "Image.getImage");
+        Cache<MachineImage> cache = Cache.getInstance(provider, "image-" + providerImageId, MachineImage.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(15, TimePeriod.SECOND) );
+        Collection<MachineImage> images = ( Collection<MachineImage> ) cache.get(getContext());
+
         try {
-            Image image = (Image) getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGE, providerImageId);
-            return toImage(image);
+            if (images != null) {
+                return images.iterator().next();
+            } else {
+                MachineImage image = toImage((Image) getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.IMAGE, providerImageId));
+                cache.put(getContext(), Collections.singletonList(image));
+                return image;
+            }
         }
         catch( CloudException e ) {
             if( e.getHttpCode() == 404 ) {
