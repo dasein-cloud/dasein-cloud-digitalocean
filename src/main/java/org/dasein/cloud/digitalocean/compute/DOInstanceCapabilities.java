@@ -209,7 +209,7 @@ public class DOInstanceCapabilities extends AbstractCapabilities<DigitalOcean> i
 
     @Override
     public boolean supportsTerminate() {
-        return false;
+        return true;
     }
 
     @Override
