@@ -189,7 +189,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     @Override
     public @Nullable VirtualMachine getVirtualMachine(@Nonnull String instanceId) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "getVirtualMachine");
-        Cache<VirtualMachine> cache = Cache.getInstance(getProvider(), "vm-" + instanceId, VirtualMachine.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(30, TimePeriod.SECOND) );
+        Cache<VirtualMachine> cache = Cache.getInstance(getProvider(), "vm-" + instanceId, VirtualMachine.class, CacheLevel.REGION, new TimePeriod<Second>(30, TimePeriod.SECOND) );
         Collection<VirtualMachine> vms = ( Collection<VirtualMachine> ) cache.get(getContext());
 
         try {
@@ -367,7 +367,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     public @Nonnull Iterable<ResourceStatus> listVirtualMachineStatus() throws InternalException, CloudException {
         APITrace.begin(getProvider(), "listVirtualMachineStatus");
 
-        Cache<ResourceStatus> cache = Cache.getInstance(getProvider(), "vm-status-list", ResourceStatus.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(60, TimePeriod.SECOND) );
+        Cache<ResourceStatus> cache = Cache.getInstance(getProvider(), "vm-status-list", ResourceStatus.class, CacheLevel.REGION, new TimePeriod<Second>(60, TimePeriod.SECOND) );
         Collection<ResourceStatus> resourceStatus = ( Collection<ResourceStatus> ) cache.get(getContext());
 
         try {
@@ -410,7 +410,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     @Override
     public @Nonnull Iterable<VirtualMachine> listVirtualMachines(@Nullable VMFilterOptions options) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "listVirtualMachines");
-        Cache<VirtualMachine> cache = Cache.getInstance(getProvider(), "vm-list", VirtualMachine.class, CacheLevel.CLOUD_ACCOUNT, new TimePeriod<Second>(60, TimePeriod.SECOND) );
+        Cache<VirtualMachine> cache = Cache.getInstance(getProvider(), "vm-list", VirtualMachine.class, CacheLevel.REGION, new TimePeriod<Second>(60, TimePeriod.SECOND) );
         Collection<VirtualMachine> vms = ( Collection<VirtualMachine> ) cache.get(getContext());
 
         try {
