@@ -122,6 +122,11 @@ public class DOInstanceCapabilities extends AbstractCapabilities<DigitalOcean> i
     }
 
     @Override
+    public @Nonnull String[] getVirtualMachineReservedUserNames() {
+        return new String[0];
+    }
+
+    @Override
     public @Nullable VMScalingCapabilities getVerticalScalingCapabilities() throws CloudException, InternalException {
     	 return VMScalingCapabilities.getInstance(false, true, false);
     }
@@ -149,6 +154,11 @@ public class DOInstanceCapabilities extends AbstractCapabilities<DigitalOcean> i
 
     @Override
     public boolean isUserDefinedPrivateIPSupported() throws CloudException, InternalException {
+        return false;
+    }
+
+    @Override
+    public boolean isRootPasswordSSHKeyEncrypted() throws CloudException, InternalException {
         return false;
     }
 
