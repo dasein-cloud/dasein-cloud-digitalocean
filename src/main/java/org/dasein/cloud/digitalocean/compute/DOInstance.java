@@ -220,7 +220,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     @Override
     public @Nullable VirtualMachineProduct getProduct(@Nonnull String sizeId) throws CloudException, InternalException {
         for( Architecture a : getCapabilities().listSupportedArchitectures() ) {
-            for( VirtualMachineProduct prd : listProducts(a) ) {
+            for( VirtualMachineProduct prd : listProducts(VirtualMachineProductFilterOptions.getInstance(), a) ) {
                 if( prd.getProviderProductId().equals(sizeId) ) {
                     return prd;
                 }
@@ -242,8 +242,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         }
     }
 
-    // TODO: remove this soon
-    public @Nonnull Iterable<VirtualMachineProduct> listProducts( @Nonnull VirtualMachineProductFilterOptions options, @Nullable Architecture architecture ) throws InternalException, CloudException {
+    private @Nonnull Iterable<VirtualMachineProduct> listProducts( @Nonnull VirtualMachineProductFilterOptions options, @Nullable Architecture architecture ) throws InternalException, CloudException {
         String cacheName = "ALL";
         if( architecture != null ) {
             cacheName = architecture.name();

@@ -121,6 +121,11 @@ public class DOImageCapabilities extends AbstractCapabilities<DigitalOcean> impl
     }
 
     @Override
+    public boolean supportsImageRemoval() throws CloudException, InternalException {
+        return true;
+    }
+
+    @Override
     public boolean supportsImageSharing() {
         return false;
     }
