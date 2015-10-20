@@ -142,6 +142,12 @@ public class DOInstanceCapabilities extends AbstractCapabilities<DigitalOcean> i
         return Requirement.REQUIRED;
     }
 
+    @Nonnull
+    @Override
+    public Requirement identifyUsernameRequirement() throws CloudException, InternalException {
+        return Requirement.REQUIRED;
+    }
+
     @Override
     public @Nonnull Requirement identifyShellKeyRequirement(Platform platform) throws CloudException, InternalException {
         return Requirement.REQUIRED;

@@ -242,6 +242,11 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         }
     }
 
+    @Override
+    public @Nonnull Iterable<VirtualMachineProduct> listAllProducts() throws InternalException, CloudException{
+        return listProducts(VirtualMachineProductFilterOptions.getInstance(), null);
+    }
+
     private @Nonnull Iterable<VirtualMachineProduct> listProducts( @Nonnull VirtualMachineProductFilterOptions options, @Nullable Architecture architecture ) throws InternalException, CloudException {
         String cacheName = "ALL";
         if( architecture != null ) {
