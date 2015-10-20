@@ -7,7 +7,7 @@
 
     <name>Dasein Cloud Digital Ocean</name>
     <description>Dasein Cloud implementation for the Digital Ocean cloud</description>
-    <url>https://github.org/dasein-cloud/dasein-cloud-azurepack</url>
+    <url>https://github.org/dasein-cloud/dasein-cloud-digitalocean</url>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
