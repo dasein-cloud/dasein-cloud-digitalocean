@@ -20,6 +20,7 @@
 package org.dasein.cloud.digitalocean.models.rest;
 
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -45,7 +46,7 @@ public class DigitalOceanPostAction extends DigitalOceanAction {
 	}
 	
 	@Override
-	public JSONObject getParameters() throws CloudException, JSONException {
+	public JSONObject getParameters() throws CloudException, JSONException, InternalException {
 		return getDefaultJSON();	
 	}
 	

@@ -20,6 +20,7 @@
 package org.dasein.cloud.digitalocean.models.rest;
 
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.dasein.cloud.digitalocean.models.IDigitalOcean;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,7 +45,7 @@ public class DigitalOceanAction implements IDigitalOcean {
 		return null;
 	}
 
-	public JSONObject getParameters() throws CloudException, JSONException {
+	public JSONObject getParameters() throws CloudException, JSONException, InternalException {
 		return null;
 	}
 	
