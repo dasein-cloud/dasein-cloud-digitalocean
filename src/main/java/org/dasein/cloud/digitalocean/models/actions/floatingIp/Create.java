@@ -11,7 +11,7 @@ import org.json.JSONObject;
 public class Create extends DigitalOceanPostAction {
 
     //Required
-    String region = null;
+    private String region = null;
 
     public Create( String region) {
         this.region = region;
@@ -27,7 +27,7 @@ public class Create extends DigitalOceanPostAction {
 
     @Override
     public  String toString() {
-        return "/v2/floating_ips";
+        return "v2/floating_ips";
     }
 
     public JSONObject getParameters() throws CloudException, JSONException {

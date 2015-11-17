@@ -20,7 +20,7 @@ public class Assign extends DigitalOceanPostAction {
 
     @Override
     public String toString() {
-        return "/v2/floating_ips/%s/actions";
+        return "v2/floating_ips/%s/actions";
     }
 
     public JSONObject getParameters() throws CloudException, JSONException, InternalException {

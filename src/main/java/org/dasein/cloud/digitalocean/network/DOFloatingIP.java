@@ -6,6 +6,8 @@ import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.digitalocean.DigitalOcean;
 import org.dasein.cloud.digitalocean.compute.DOImageCapabilities;
+import org.dasein.cloud.digitalocean.models.Action;
+import org.dasein.cloud.digitalocean.models.Actions;
 import org.dasein.cloud.digitalocean.models.FloatingIp;
 import org.dasein.cloud.digitalocean.models.FloatingIps;
 import org.dasein.cloud.digitalocean.models.actions.floatingIp.Assign;
@@ -24,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getDropletByInstance;
+import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getEventById;
 import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getModelById;
 
 /**
@@ -41,7 +44,15 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
     public void assign(@Nonnull String addressId, @Nonnull String serverId) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "IpAddress.assign");
         try {
-            DigitalOceanModelFactory.performAction(getProvider(), new Assign(serverId), addressId);
+            Action action = DigitalOceanModelFactory.performAction(getProvider(), new Assign(serverId), addressId);
+            while( action != null && !"completed".equalsIgnoreCase(action.getStatus())) {
+                try {
+                    Thread.sleep(15000);
+                }
+                catch( InterruptedException ignore ) {
+                }
+                action = getEventById(getProvider(), action.getId());
+            }
         }
         finally{
             APITrace.end();
@@ -87,9 +98,13 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
 
     private IpAddress toIpAddress(FloatingIp floatingIp) {
         IpAddress ipAddress = new IpAddress();
+        ipAddress.setIpAddressId(floatingIp.getIp());
         ipAddress.setAddress(floatingIp.getIp());
-        ipAddress.setServerId(floatingIp.getDroplet());
+        if( floatingIp.getDroplet() != null ) {
+            ipAddress.setServerId(floatingIp.getDroplet().getId());
+        }
         ipAddress.setRegionId(floatingIp.getRegion().getId());
+        ipAddress.setAddressType(AddressType.PUBLIC);
         return ipAddress;
     }
 
@@ -157,7 +172,15 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
     public void releaseFromServer(@Nonnull String addressId) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "IpAddress.releaseFromServer");
         try {
-            DigitalOceanModelFactory.performAction(getProvider(), new Unassign(), addressId);
+            Action action = DigitalOceanModelFactory.performAction(getProvider(), new Unassign(), addressId);
+            while( action != null && !"completed".equalsIgnoreCase(action.getStatus())) {
+                try {
+                    Thread.sleep(15000);
+                }
+                catch( InterruptedException ignore ) {
+                }
+                action = getEventById(getProvider(), action.getId());
+            }
         }
         finally{
             APITrace.end();
@@ -168,6 +191,9 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
     public @Nonnull String request(@Nonnull IPVersion ipVersion) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "IPVersion.request");
         try {
+            if( IPVersion.IPV6.equals(ipVersion) ) {
+                throw new OperationNotSupportedException("IPV6 is not supported by " + getProvider().getCloudName());
+            }
             String regionId = getContext().getRegionId();
             if( regionId == null ) {
                 throw new CloudException("No region was set for this request.");
@@ -178,7 +204,7 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
             IpAddress ipAddress = toIpAddress(ip);
 
             if( ip != null ) {
-                return String.valueOf(ipAddress);
+                return ipAddress.getProviderIpAddressId();
             }
             else {
                 throw new CloudException("Unable to create floating IP for this IP version "+ipVersion);
@@ -197,6 +223,44 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
     @Override
     public @Nonnull String requestForVLAN(@Nonnull IPVersion version, @Nonnull String vlanId) throws InternalException, CloudException {
         throw new OperationNotSupportedException("Requesting for VLAN is not supported in " + getProvider().getCloudName());
+    }
+
+    /**
+     * Wait for specified number of minutes for all pending floating ip events to complete
+     * @param floatingIp Floating IP
+     * @param timeout Time in minutes to wait for events to complete
+     * @throws InternalException
+     * @throws CloudException
+     */
+    void waitForAllIpAddressEventsToComplete(@Nonnull String floatingIp, int timeout) throws InternalException, CloudException {
+        APITrace.begin(getProvider(), "listVirtualMachineStatus");
+        try {
+            // allow maximum five minutes for events to complete
+            long wait = System.currentTimeMillis() + timeout * 60 * 1000;
+            boolean eventsPending = false;
+            while( System.currentTimeMillis() < wait ) {
+                Actions actions = DigitalOceanModelFactory.getFloatingIpEvents(getProvider(), floatingIp);
+                for( Action action : actions.getActions() ) {
+                    if( "in-progress".equalsIgnoreCase(action.getStatus()) ) {
+                        eventsPending = true;
+                    }
+                }
+                if( !eventsPending ) {
+                    break;
+                }
+                try {
+                    // must be careful here not to cause rate limits
+                    Thread.sleep(30000);
+                }
+                catch( InterruptedException e ) {
+                    break;
+                }
+            }
+            // if events are still pending the cloud will fail the next operation anyway
+        }
+        finally {
+            APITrace.end();
+        }
     }
 
 }

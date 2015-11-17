@@ -14,6 +14,6 @@ public class Delete extends DigitalOceanDeleteAction {
 
     @Override
     public  String toString() {
-        return "/v2/floating_ips/%s";
+        return "v2/floating_ips/%s";
     }
 }

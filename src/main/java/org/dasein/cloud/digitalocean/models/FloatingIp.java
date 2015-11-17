@@ -7,7 +7,7 @@ import org.dasein.cloud.digitalocean.models.rest.DigitalOceanRestModel;
  */
 public class FloatingIp implements DigitalOceanRestModel {
     private String ip;
-    private String droplet;
+    private Droplet droplet;
     private boolean locked;
     private Region region;
 
@@ -19,11 +19,11 @@ public class FloatingIp implements DigitalOceanRestModel {
         this.ip = ip;
     }
 
-    public String getDroplet() {
+    public Droplet getDroplet() {
         return droplet;
     }
 
-    public void setDroplet(String droplet) {
+    public void setDroplet(Droplet droplet) {
         this.droplet = droplet;
     }
 
