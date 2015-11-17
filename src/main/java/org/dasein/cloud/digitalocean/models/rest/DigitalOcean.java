@@ -84,11 +84,11 @@ public enum DigitalOcean implements IDigitalOcean {
             case ACTION:
                 return "v2/actions/%s";
             case FLOATING_IPS:
-                return "/v2/floating_ips";
+                return "v2/floating_ips";
             case FLOATING_IP:
-                return "/v2/floating_ips/%s";
+                return "v2/floating_ips/%s";
             case FLOATING_IP_ACTIONS:
-                return "/v2/floating_ips/%s/actions";
+                return "v2/floating_ips/%s/actions";
             default:
                 throw new IllegalArgumentException("DigitalOcean endpoint not configured.");
         }
@@ -180,6 +180,7 @@ public enum DigitalOcean implements IDigitalOcean {
             }
 
             case DROPLET_ACTIONS:
+            case FLOATING_IP_ACTIONS:
             case IMAGE_ACTIONS:
             case ACTIONS: {
                 //V2 event = actions
