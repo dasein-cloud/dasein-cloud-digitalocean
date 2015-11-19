@@ -28,6 +28,7 @@ import org.dasein.cloud.digitalocean.models.actions.droplet.*;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory;
 import static org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLETS;
 import org.dasein.cloud.network.IPVersion;
+import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.RawAddress;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.cloud.util.Cache;
@@ -156,6 +157,16 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         return capabilities;
     }
 
+    protected @Nullable IpAddress findFloatingIpAddressForDroplet(@Nonnull String dropletId) throws CloudException, InternalException {
+        if( getProvider().getNetworkServices() != null && getProvider().getNetworkServices().getIpAddressSupport() != null ) {
+            for( IpAddress addr : getProvider().getNetworkServices().getIpAddressSupport().listIpPool(IPVersion.IPV4, false) ) {
+                if( dropletId.equalsIgnoreCase(addr.getServerId()) ) {
+                    return addr;
+                }
+            }
+        }
+        return null;
+    }
 
     @Override
     public @Nullable VirtualMachine getVirtualMachine(@Nonnull String instanceId) throws InternalException, CloudException {
@@ -163,7 +174,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         try {
             Droplet d = (Droplet) DigitalOceanModelFactory.getModelById(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.DROPLET, instanceId);
             if (d != null) {
-                VirtualMachine server = toVirtualMachine(d);
+                VirtualMachine server = toVirtualMachine(d, findFloatingIpAddressForDroplet(d.getId()));
                 if (server != null && server.getProviderVirtualMachineId().equals(instanceId)) {
                     return server;
                 }
@@ -210,8 +221,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         return listProducts(VirtualMachineProductFilterOptions.getInstance(), null);
     }
 
-    // TODO: remove this soon
-    public @Nonnull Iterable<VirtualMachineProduct> listProducts( @Nonnull VirtualMachineProductFilterOptions options, @Nullable Architecture architecture ) throws InternalException, CloudException {
+    protected @Nonnull Iterable<VirtualMachineProduct> listProducts( @Nonnull VirtualMachineProductFilterOptions options, @Nullable Architecture architecture ) throws InternalException, CloudException {
         String cacheName = "ALL";
         if( architecture != null ) {
             cacheName = architecture.name();
@@ -376,7 +386,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
             int total = droplets.getTotal();
             while( droplets.getDroplets().size() > 0 ) {
                 for( Droplet d : droplets.getDroplets() ) {
-                    VirtualMachine vm = toVirtualMachine(d);
+                    VirtualMachine vm = toVirtualMachine(d, null); // TODO: not setting the floating ip address here, may want to rework this
                     if( (options == null || options.matches(vm)) &&
                             vm.getProviderRegionId().equalsIgnoreCase(getContext().getRegionId()) ) {
                         results.add(vm);
@@ -453,7 +463,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         return new ResourceStatus(instance.getId(), instance.getStatus());
     }
 
-    private @Nullable VirtualMachine toVirtualMachine(@Nullable Droplet instance) throws CloudException, InternalException {
+    private @Nullable VirtualMachine toVirtualMachine(@Nullable Droplet instance, @Nullable IpAddress assignedIpAddressId) throws CloudException, InternalException {
         if( instance == null ) {
             return null;
         }
@@ -464,6 +474,9 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         server.setProviderOwnerId(getContext().getAccountNumber());
         server.setCurrentState(instance.getStatus());
         server.setName(instance.getName());
+        if( assignedIpAddressId != null ) {
+            server.setProviderAssignedIpAddressId(assignedIpAddressId.getProviderIpAddressId());
+        }
         if( instance.getSize() != null && instance.getSize().getSlug() != null ) {
             server.setProductId(instance.getSize().getSlug());
         }

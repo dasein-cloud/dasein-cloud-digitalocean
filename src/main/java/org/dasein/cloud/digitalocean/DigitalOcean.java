@@ -44,6 +44,8 @@ import org.dasein.cloud.*;
 import org.dasein.cloud.digitalocean.compute.DOComputeServices;
 import org.dasein.cloud.digitalocean.dc.DOLocation;
 import org.dasein.cloud.digitalocean.identity.IdentityServices;
+import org.dasein.cloud.digitalocean.network.DONetworkServices;
+import org.dasein.cloud.network.NetworkServices;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -145,6 +147,10 @@ public class DigitalOcean extends AbstractCloud {
         return new ContextRequirements(
                 new ContextRequirements.Field("token", "The Token key used to connect to this cloud", ContextRequirements.FieldType.TOKEN, true)
         );
+    }
+
+    @Nullable @Override public NetworkServices getNetworkServices() {
+        return new DONetworkServices(this);
     }
 
     @Override

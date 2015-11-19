@@ -451,4 +451,8 @@ public class DigitalOceanModelFactory {
         return (Actions) getModelById(provider, DigitalOcean.DROPLET_ACTIONS, dropletId);
     }
 
+    public static Actions getFloatingIpEvents(org.dasein.cloud.digitalocean.DigitalOcean provider, String floatingIp) throws CloudException, InternalException {
+        return (Actions) getModelById(provider, DigitalOcean.FLOATING_IP_ACTIONS, floatingIp);
+    }
+
 }
