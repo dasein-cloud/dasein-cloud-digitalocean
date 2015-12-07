@@ -93,7 +93,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
      * @throws InternalException
      * @throws CloudException
      */
-    void waitForAllDropletEventsToComplete(@Nonnull String instanceId, int timeout) throws InternalException, CloudException {
+    public void waitForAllDropletEventsToComplete(@Nonnull String instanceId, int timeout) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "listVirtualMachineStatus");
         try {
             // allow maximum five minutes for events to complete
@@ -375,10 +375,23 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         return listVirtualMachines(null);
     }
 
+    private IpAddress findIpAddressForDroplet(@Nonnull Iterable<IpAddress> addresses, @Nonnull String dropletId) {
+        for( IpAddress address : addresses ) {
+            if(dropletId.equals(address.getServerId())) {
+                return address;
+            }
+        }
+        return null;
+    }
+
     @Override
     public @Nonnull Iterable<VirtualMachine> listVirtualMachines(@Nullable VMFilterOptions options) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "listVirtualMachines");
         try {
+            Iterable<IpAddress> ipAddresses = null;
+            if( getProvider().hasNetworkServices() && getProvider().getNetworkServices().hasIpAddressSupport() ) {
+                ipAddresses = getProvider().getNetworkServices().getIpAddressSupport().listIpPool(IPVersion.IPV4, false);
+            }
             List<VirtualMachine> results = new ArrayList<VirtualMachine>();
 
             Droplets droplets = (Droplets) DigitalOceanModelFactory.getModel(getProvider(), DROPLETS);
@@ -386,7 +399,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
             int total = droplets.getTotal();
             while( droplets.getDroplets().size() > 0 ) {
                 for( Droplet d : droplets.getDroplets() ) {
-                    VirtualMachine vm = toVirtualMachine(d, null); // TODO: not setting the floating ip address here, may want to rework this
+                    VirtualMachine vm = toVirtualMachine(d, findFloatingIpAddressForDroplet(d.getId()));
                     if( (options == null || options.matches(vm)) &&
                             vm.getProviderRegionId().equalsIgnoreCase(getContext().getRegionId()) ) {
                         results.add(vm);
