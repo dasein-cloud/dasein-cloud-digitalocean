@@ -44,6 +44,9 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
     public void assign(@Nonnull String addressId, @Nonnull String serverId) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "IpAddress.assign");
         try {
+            // Droplets cannot be assigned a floating ip address while there are pending events on a droplet
+            getProvider().getComputeServices().getVirtualMachineSupport().waitForAllDropletEventsToComplete(serverId, 5);
+
             Action action = DigitalOceanModelFactory.performAction(getProvider(), new Assign(serverId), addressId);
             while( action != null && !"completed".equalsIgnoreCase(action.getStatus())) {
                 try {
@@ -77,7 +80,6 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
         return capabilities;
     }
 
-
     @Override
     public @Nullable IpAddress getIpAddress(@Nonnull String addressId) throws InternalException, CloudException {
         APITrace.begin(getProvider(), "IpAddress.getIpAddress");
@@ -98,6 +100,7 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
 
     private IpAddress toIpAddress(FloatingIp floatingIp) {
         IpAddress ipAddress = new IpAddress();
+        ipAddress.setVersion(IPVersion.IPV4);
         ipAddress.setIpAddressId(floatingIp.getIp());
         ipAddress.setAddress(floatingIp.getIp());
         if( floatingIp.getDroplet() != null ) {
@@ -129,7 +132,10 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
             FloatingIps ips = ( FloatingIps ) DigitalOceanModelFactory.getModel(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.FLOATING_IPS);
             List<IpAddress> results = new ArrayList<IpAddress>();
             for( FloatingIp fi : ips.getFloatingIps() ) {
-                results.add(toIpAddress(fi));
+                IpAddress addr = toIpAddress(fi);
+                if( getContext().getRegionId().equalsIgnoreCase(addr.getRegionId()) ) {
+                    results.add(addr);
+                }
             }
             return results;
         }
@@ -223,44 +229,6 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
     @Override
     public @Nonnull String requestForVLAN(@Nonnull IPVersion version, @Nonnull String vlanId) throws InternalException, CloudException {
         throw new OperationNotSupportedException("Requesting for VLAN is not supported in " + getProvider().getCloudName());
-    }
-
-    /**
-     * Wait for specified number of minutes for all pending floating ip events to complete
-     * @param floatingIp Floating IP
-     * @param timeout Time in minutes to wait for events to complete
-     * @throws InternalException
-     * @throws CloudException
-     */
-    void waitForAllIpAddressEventsToComplete(@Nonnull String floatingIp, int timeout) throws InternalException, CloudException {
-        APITrace.begin(getProvider(), "listVirtualMachineStatus");
-        try {
-            // allow maximum five minutes for events to complete
-            long wait = System.currentTimeMillis() + timeout * 60 * 1000;
-            boolean eventsPending = false;
-            while( System.currentTimeMillis() < wait ) {
-                Actions actions = DigitalOceanModelFactory.getFloatingIpEvents(getProvider(), floatingIp);
-                for( Action action : actions.getActions() ) {
-                    if( "in-progress".equalsIgnoreCase(action.getStatus()) ) {
-                        eventsPending = true;
-                    }
-                }
-                if( !eventsPending ) {
-                    break;
-                }
-                try {
-                    // must be careful here not to cause rate limits
-                    Thread.sleep(30000);
-                }
-                catch( InterruptedException e ) {
-                    break;
-                }
-            }
-            // if events are still pending the cloud will fail the next operation anyway
-        }
-        finally {
-            APITrace.end();
-        }
     }
 
 }
