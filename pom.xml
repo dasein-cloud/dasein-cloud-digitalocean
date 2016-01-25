@@ -31,26 +31,6 @@
         <url>http://github.com/dasein-cloud/dasein-cloud-digitalocean.git </url>
       <tag>HEAD</tag>
     </scm>
-    <profiles>
-        <profile>
-            <id>default</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <properties>
-                <skipUnit>false</skipUnit>
-                <skipIntegration>true</skipIntegration>
-            </properties>
-        </profile>
-        <profile>
-            <id>integration</id>
-            <properties>
-                <skipUnit>true</skipUnit>
-                <skipIntegration>false</skipIntegration>
-            </properties>
-        </profile>
-    </profiles>
-
     <dependencies>
         <!-- Compile -->
         <dependency>
@@ -197,19 +177,22 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.18.1</version>
                 <configuration>
-                    <skipTests>${skipUnit}</skipTests>
                     <excludes>
                         <exclude>**/TestSuite.class</exclude>
                     </excludes>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                    </includes>
                 </configuration>
             </plugin>
+
             <!-- integration tests -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-                <version>2.6</version>
+                <version>2.18.1</version>
                 <configuration>
-                    <skipTests>${skipIntegration}</skipTests>
                     <systemProperties>
                         <property>
                             <name>endpoint</name>
@@ -249,9 +232,10 @@
                         </property>
                     </systemProperties>
                     <includes>
-                        <include>**/TestSuite.java</include>
+                        <include>**/TestSuite.class</include>
                     </includes>
-                    <argLine>-Dapple.awt.UIElement=true</argLine>
+                    <forkCount>0</forkCount>
+                    <reuseForks>false</reuseForks>
                 </configuration>
                 <executions>
                     <execution>
@@ -340,5 +324,44 @@
             <timezone>0</timezone>
         </developer>
     </developers>
+    <profiles>
+        <profile>
+            <id>skipIntegration</id>
+            <activation>
+                <property><name>!providerClass</name></property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <skipTests>true</skipTests>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>skipUnit</id>
+            <activation>
+                <property>
+                    <name>skipUnit</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <skipTests>true</skipTests>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
