@@ -19,7 +19,6 @@
 
 package org.dasein.cloud.digitalocean.models.rest;
 
-import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,18 +34,18 @@ public class DigitalOceanPostAction extends DigitalOceanAction {
 		return "unknown";
 	}
 	
-	public JSONObject getDefaultJSON() throws CloudException, JSONException {
+	public JSONObject getDefaultJSON() {
 		JSONObject postParameter = new JSONObject();
 		String type = getType();
 		//Identity service does not have type as parameter
 		if (type != null) {
-			postParameter.put("type",  getType());
+			try { postParameter.put("type",  getType()); } catch( JSONException ignore ) {}
 		}
 		return postParameter;
 	}
 	
 	@Override
-	public JSONObject getParameters() throws CloudException, JSONException, InternalException {
+	public JSONObject getParameters() throws InternalException {
 		return getDefaultJSON();	
 	}
 	

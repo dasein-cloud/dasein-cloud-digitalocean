@@ -20,55 +20,28 @@
 package org.dasein.cloud.digitalocean.models.rest;
 
 import org.apache.commons.io.IOUtils;
-import org.apache.http.Consts;
 import org.apache.http.Header;
-import org.apache.http.HeaderElement;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpException;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpResponseInterceptor;
-import org.apache.http.HttpVersion;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.GzipDecompressingEntity;
 import org.apache.http.client.methods.*;
-import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.params.HttpProtocolParams;
-import org.apache.http.protocol.HttpContext;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Logger;
-import org.dasein.cloud.CloudErrorType;
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.CloudProvider;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.ProviderContext;
+import org.dasein.cloud.*;
 import org.dasein.cloud.digitalocean.models.Action;
 import org.dasein.cloud.digitalocean.models.Actions;
 import org.dasein.cloud.digitalocean.models.Droplet;
 import org.dasein.cloud.digitalocean.models.IDigitalOcean;
 import org.dasein.cloud.digitalocean.models.actions.droplet.Create;
-import org.dasein.cloud.identity.SSHKeypair;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 
 public class DigitalOceanModelFactory {
 
@@ -76,11 +49,11 @@ public class DigitalOceanModelFactory {
 	static private final Logger logger = org.dasein.cloud.digitalocean.DigitalOcean.getLogger(DigitalOceanModelFactory.class);
 
     //for get method
-    private static String performHttpRequest(org.dasein.cloud.digitalocean.DigitalOcean provider, RESTMethod method, String token, String endpoint) throws CloudException, InternalException {
-    	return performHttpRequest(provider, method, token, endpoint, null);
+    private static DigitalOceanRestModel getModel(org.dasein.cloud.digitalocean.DigitalOcean provider, RESTMethod method, String token, DigitalOcean model, String endpoint) throws CloudException, InternalException {
+        return model.fromJson(getModel(provider, method, token, endpoint, null));
     }
     
-	private static String performHttpRequest(org.dasein.cloud.digitalocean.DigitalOcean provider, RESTMethod method, String token, String endpoint, DigitalOceanAction action) throws CloudException, InternalException {
+	private static String getModel(org.dasein.cloud.digitalocean.DigitalOcean provider, RESTMethod method, String token, String endpoint, DigitalOceanAction action) throws CloudException, InternalException {
 		if( logger.isTraceEnabled() ) {
             logger.trace("ENTER - " + DigitalOceanModelFactory.class.getName() + ".performHttpRequest(" + method + "," + token + "," + endpoint + ")");
             logger.trace("CALLING - " + method + " "  + endpoint);
@@ -108,14 +81,14 @@ public class DigitalOceanModelFactory {
                     message = ob.getString("message");
                 }
                 logger.error("Status:" + response.getStatusLine().getStatusCode() + " - " + responseBody);
-                throw new CloudException(CloudErrorType.GENERAL, response.getStatusLine().getStatusCode(), code, message);
+                throw new GeneralCloudException(CloudErrorType.GENERAL, response.getStatusLine().getStatusCode(), code, message);
             }
             return responseBody;
 
         } catch (JSONException e) {
-            throw new CloudException(e);
+            throw new CommunicationException("Unable to parse the response", e);
         } catch (IOException e) {
-            throw new CloudException(e);
+            throw new CommunicationException("IO error", e);
         } finally {
             if (logger.isTraceEnabled()) {
                 logger.trace("EXIT - " + DigitalOceanModelFactory.class.getName() + ".performHttpRequest(" + method + "," + token + "," + endpoint + ")");
@@ -208,17 +181,13 @@ public class DigitalOceanModelFactory {
             }
             if (method == RESTMethod.DELETE && (response.getStatusLine().getStatusCode() != 204)) {
                 //Error occurred
-                throw new CloudException("Delete method returned unexpected code, despite retrying.");
+                throw new GeneralCloudException("Delete method returned unexpected code, despite retrying.", CloudErrorType.GENERAL);
             }
             return response;
-        } catch (JSONException e) {
-            throw new CloudException("Problem sending request.", e);
-        } catch (InterruptedException e) {
-            throw new CloudException("Problem sending request.", e);
-        } catch (ClientProtocolException e) {
-            throw new CloudException("Problem sending request.", e);
         } catch (IOException e) {
-            throw new CloudException("Problem sending request.", e);
+            throw new GeneralCloudException("Problem sending request.", e, CloudErrorType.GENERAL);
+        } catch (InterruptedException e) {
+            throw new InternalException("Retry has been interrupted.", e);
         } finally {
             try {
 //                req.releaseConnection();
@@ -251,32 +220,21 @@ public class DigitalOceanModelFactory {
                 }
                 urlBuilder.append("page=").append(page);
             }
-			String responseText = performHttpRequest(provider, RESTMethod.GET, token, urlBuilder.toString());
-			JSONObject jso = new JSONObject(responseText);
-								
-			return model.fromJson(jso);
-        } catch (JSONException e) {
-            throw new CloudException(e);
-		} finally {
+            return getModel(provider, RESTMethod.GET, token, model, urlBuilder.toString());
+        } finally {
 			if( logger.isTraceEnabled() ) {
 	            logger.trace("EXIT - " + DigitalOceanModelFactory.class.getName() + ".getModel(" + provider + "," + model + ")");
 	        }
 		}
 	}
-	
-	public static DigitalOceanRestModel getModelById(org.dasein.cloud.digitalocean.DigitalOcean provider, DigitalOcean model, String id) throws CloudException, InternalException {
 
+	public static DigitalOceanRestModel getModelById(org.dasein.cloud.digitalocean.DigitalOcean provider, DigitalOcean model, String id) throws CloudException, InternalException {
 		if( logger.isTraceEnabled() ) {
             logger.trace("ENTER - " + DigitalOceanModelFactory.class.getName() + ".getModel(" + provider + "," +  model + "," + id + ")");
         }
-
 		String token = (String) provider.getContext().getConfigurationValue("token");
 		try {
-			String s = performHttpRequest(provider, RESTMethod.GET, token,  getApiUrl(provider) + getEndpoint(model, id));
-			JSONObject jso = new JSONObject(s);
-			return model.fromJson(jso);				
-		} catch (JSONException e) {
-            throw new CloudException(e);
+			return getModel(provider, RESTMethod.GET, token, model, getApiUrl(provider) + getEndpoint(model, id));
         } finally {
 			if( logger.isTraceEnabled() ) {
 	            logger.trace("EXIT - " + DigitalOceanModelFactory.class.getName() + ".getModel(" + provider + "," + model + ")");
@@ -319,7 +277,7 @@ public class DigitalOceanModelFactory {
 
 		String token = (String) provider.getContext().getConfigurationValue("token");
 
-		String s = performHttpRequest(provider, doa.getRestMethod(), token,  getApiUrl(provider) + getEndpoint(doa, id), doa);
+		String s = getModel(provider, doa.getRestMethod(), token,  getApiUrl(provider) + getEndpoint(doa, id), doa);
 		
 		try {
 			//Delete have no output...
@@ -327,17 +285,14 @@ public class DigitalOceanModelFactory {
 				return null;
 			}
 			
-			JSONObject jso = new JSONObject(s);
-			Action result = (Action) DigitalOcean.ACTION.fromJson(jso);				
+			Action result = (Action) DigitalOcean.ACTION.fromJson(s);
 			
 			if (!result.isError()) {
-				return (Action) DigitalOcean.ACTION.fromJson(jso);				
+				return (Action) DigitalOcean.ACTION.fromJson(s);
 			} else {
 				//Not sure why in API V2 they removed the message of errors... we are now left blind
-				throw new CloudException("An error occured while performing " + doa + " with parameters : " + doa.getParameters());
+				throw new GeneralCloudException("An error occured while performing " + doa + " with parameters : " + doa.getParameters(), CloudErrorType.GENERAL);
 			}
-		} catch (JSONException e) {			
-			throw new CloudException(e);
 		} finally {
 			if( logger.isTraceEnabled() ) {
 	            logger.trace("EXIT - " + DigitalOceanModelFactory.class.getName() + ".destroyDroplet(" + provider + "," + id + ")");
@@ -353,13 +308,10 @@ public class DigitalOceanModelFactory {
 
 		String token = (String) provider.getContext().getConfigurationValue("token");
         
-		String s = performHttpRequest(provider, doa.getRestMethod(), token,  getApiUrl(provider) + getEndpoint(doa), doa);
+		String s = getModel(provider, doa.getRestMethod(), token,  getApiUrl(provider) + getEndpoint(doa), doa);
 		
 		try {			
-			JSONObject jso = new JSONObject(s);
-			return returnObject.fromJson(jso);				
-		} catch (JSONException e) {
-            throw new CloudException(e);
+			return returnObject.fromJson(s);
         } finally {
 			if( logger.isTraceEnabled() ) {
 	            logger.trace("EXIT - " + DigitalOceanModelFactory.class.getName() + ".performAction(" + provider.getCloudName() + "," + returnObject + ")");
@@ -403,25 +355,13 @@ public class DigitalOceanModelFactory {
 			//Extra parameter is not part of DaseinCloud.... as its cloud specific
 			if (extraParameters != null) {
 				if (extraParameters.containsKey("backup_enabled")) {
-					try {
-						action.setBackups((Boolean)extraParameters.get("backup_enabled"));
-					} catch (Exception ee) {
-						throw new CloudException("Parameter 'backup_enabled' must be of type Boolean");
-					}
+                    action.setBackups((Boolean)extraParameters.get("backup_enabled"));
 				}
 				if (extraParameters.containsKey("private_networking")) {
-					try {
-						action.setPrivateNetworking((Boolean)extraParameters.get("private_networking"));
-					} catch (Exception ee) {
-						throw new CloudException("Parameter 'private_networking' must be of type Boolean");
-					}
+                    action.setPrivateNetworking((Boolean)extraParameters.get("private_networking"));
 				}
                 if (extraParameters.containsKey("user_data")){
-                    try {
-                        action.setUserdata((String)extraParameters.get("user_data"));
-                    } catch (Exception ee) {
-                        throw new CloudException("Parameter 'user_data' must be of type String");
-                    }
+                    action.setUserdata((String)extraParameters.get("user_data"));
                 }
 			}
 		

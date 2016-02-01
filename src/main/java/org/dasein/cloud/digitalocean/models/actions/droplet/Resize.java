@@ -38,17 +38,18 @@
  */
 package org.dasein.cloud.digitalocean.models.actions.droplet;
 
-import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.dasein.cloud.digitalocean.models.rest.ActionType;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanPostAction;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.annotation.Nonnull;
 
 public class Resize extends DigitalOceanPostAction {	
 	
-	String size  = null;
-	public Resize(String sizeSlug) {
+	private String size  = null;
+	public Resize(@Nonnull String sizeSlug) {
 		this.size = sizeSlug;
 		actionType = ActionType.DROPLET;
 	}
@@ -60,9 +61,9 @@ public class Resize extends DigitalOceanPostAction {
 	}
 	
 	@Override
-	public JSONObject getParameters() throws CloudException, JSONException {
+	public JSONObject getParameters() throws InternalException {
 		JSONObject postParam = getDefaultJSON();
-		postParam.put("size", size);
+		try { postParam.put("size", size); } catch ( JSONException ignore ) {}
 		return postParam;
 	}
 	

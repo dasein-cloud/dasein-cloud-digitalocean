@@ -1,13 +1,8 @@
 package org.dasein.cloud.digitalocean.network;
 
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.OperationNotSupportedException;
-import org.dasein.cloud.ResourceStatus;
+import org.dasein.cloud.*;
 import org.dasein.cloud.digitalocean.DigitalOcean;
-import org.dasein.cloud.digitalocean.compute.DOImageCapabilities;
 import org.dasein.cloud.digitalocean.models.Action;
-import org.dasein.cloud.digitalocean.models.Actions;
 import org.dasein.cloud.digitalocean.models.FloatingIp;
 import org.dasein.cloud.digitalocean.models.FloatingIps;
 import org.dasein.cloud.digitalocean.models.actions.floatingIp.Assign;
@@ -20,12 +15,10 @@ import org.dasein.cloud.util.APITrace;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getDropletByInstance;
 import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getEventById;
 import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.getModelById;
 
@@ -202,7 +195,7 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
             }
             String regionId = getContext().getRegionId();
             if( regionId == null ) {
-                throw new CloudException("No region was set for this request.");
+                throw new InternalException("No region was set for this request.");
             }
 
             Create action = new Create(getContext().getRegionId());
@@ -213,7 +206,7 @@ public class DOFloatingIP extends AbstractIpAddressSupport<DigitalOcean> {
                 return ipAddress.getProviderIpAddressId();
             }
             else {
-                throw new CloudException("Unable to create floating IP for this IP version "+ipVersion);
+                throw new GeneralCloudException("Unable to create floating IP for this IP version "+ipVersion, CloudErrorType.GENERAL);
             }
         }
         finally{

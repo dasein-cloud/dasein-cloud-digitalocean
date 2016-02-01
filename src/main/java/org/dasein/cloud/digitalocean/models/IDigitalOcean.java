@@ -22,13 +22,9 @@ package org.dasein.cloud.digitalocean.models;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanRestModel;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 public interface IDigitalOcean {
-
-	public String toString();
-	public DigitalOceanRestModel fromJson(JSONObject jso) throws JSONException, CloudException;
-	
-	
+	String toString();
+	DigitalOceanRestModel fromJson(String jsonString) throws CloudException;
 }
 

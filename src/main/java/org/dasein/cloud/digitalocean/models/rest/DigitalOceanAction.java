@@ -25,34 +25,19 @@ import org.dasein.cloud.digitalocean.models.IDigitalOcean;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class DigitalOceanAction implements IDigitalOcean {
+public abstract class DigitalOceanAction implements IDigitalOcean {
 	protected RESTMethod method;
 	protected ActionType actionType;
 	
-	
-	protected boolean isInteger(String s) {
-		try {
-			Integer.parseInt(s);
-			return true;
-		} catch (Exception ee) {
-			
-		}
-		return false;
-	}
-	
-	public DigitalOceanRestModel fromJson(JSONObject jso) throws JSONException {
+	public DigitalOceanRestModel fromJson(String jsonString) throws CloudException {
 		//THIS IS NOT USED SINCE ALL ACTIONS RETURN AN EVENT OBJECT...
 		return null;
 	}
 
-	public JSONObject getParameters() throws CloudException, JSONException, InternalException {
+	public JSONObject getParameters() throws CloudException, InternalException {
 		return null;
 	}
 	
-	public int expectedHttpStatusCode() {
-		return 200;
-	}
-
 	public RESTMethod getRestMethod() {
 		return method;		
 	}

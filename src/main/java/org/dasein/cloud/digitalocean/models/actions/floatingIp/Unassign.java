@@ -19,9 +19,9 @@ public class Unassign extends DigitalOceanPostAction {
         return "v2/floating_ips/%s/actions";
     }
 
-    public JSONObject getParameters() throws CloudException, JSONException, InternalException {
+    public JSONObject getParameters() throws InternalException {
         JSONObject postData = new JSONObject();
-        postData.put("type", "unassign");
+        try { postData.put("type", "unassign"); } catch( JSONException ignore ) {}
         return postData;
     }
 }
