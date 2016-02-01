@@ -1,6 +1,5 @@
 package org.dasein.cloud.digitalocean.models.actions.floatingIp;
 
-import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanPostAction;
 import org.json.JSONException;
@@ -23,14 +22,14 @@ public class Assign extends DigitalOceanPostAction {
         return "v2/floating_ips/%s/actions";
     }
 
-    public JSONObject getParameters() throws CloudException, JSONException, InternalException {
+    public JSONObject getParameters() throws InternalException {
         JSONObject postData = new JSONObject();
 
         if ( dropletId == null) {
             throw new InternalException("Missing required parameter 'dropletId'");
         }
-        postData.put("type", "assign");
-        postData.put("droplet_id", dropletId);
+        try { postData.put("type", "assign"); } catch( JSONException ignore ) {}
+        try { postData.put("droplet_id", dropletId); } catch( JSONException ignore ) {}
 
         return postData;
     }

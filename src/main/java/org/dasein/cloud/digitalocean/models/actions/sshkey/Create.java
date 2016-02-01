@@ -38,7 +38,7 @@
  */
 package org.dasein.cloud.digitalocean.models.actions.sshkey;
 
-import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanPostAction;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -47,8 +47,8 @@ import org.json.JSONObject;
 public class Create extends DigitalOceanPostAction {	
 
 	//Required
-	String name = "";
-	String public_key= null;
+	private String name = "";
+	private String public_key= null;
 	
 	
 	public Create( String name, String public_key) {
@@ -56,37 +56,41 @@ public class Create extends DigitalOceanPostAction {
 		this.public_key = public_key;		
 	}	
 	
-	public String getPublicKey() {
-		return this.public_key;
-	}
-	public void setPublicKey(String n ) {
-		this.public_key = n ;
-	}
 	public String getName() {
 		return this.name;
 	}
+
 	public void setName(String n ) {
-		this.name =n ;
+		this.name = n ;
 	}
+
 	@Override
 	public  String toString() {			
 		return "v2/account/keys";
 	}
 	
-	public JSONObject getParameters() throws CloudException, JSONException {
+	public JSONObject getParameters() throws InternalException {
 		JSONObject postData = new JSONObject();
 
 		if (this.name == null) {
-			throw new CloudException("Missing required parameter 'name'");
+			throw new InternalException("Missing required parameter 'name'");
 		}
-		postData.put("name",  this.name);
-		
+		try {
+			postData.put("name",  this.name);
+		}
+		catch( JSONException ignore ) {
+		}
+
 		if (this.public_key == null) {
-			throw new CloudException("Missing required parameter 'public_key'");
-		}		
-		
-		postData.put("public_key",  this.public_key);
-		
+			throw new InternalException("Missing required parameter 'public_key'");
+		}
+
+		try {
+			postData.put("public_key",  this.public_key);
+		}
+		catch( JSONException ignore ) {
+		}
+
 		return postData;
 	}
 	

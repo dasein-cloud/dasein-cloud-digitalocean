@@ -19,17 +19,20 @@
 
 package org.dasein.cloud.digitalocean.models.actions.droplet;
 
-import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.dasein.cloud.digitalocean.models.rest.ActionType;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanPostAction;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import javax.annotation.Nonnull;
+
 
 public class Snapshot extends DigitalOceanPostAction {	
 		
-	public String snapshotName;
-	public Snapshot(String name) {
+	private String snapshotName;
+
+	public Snapshot(@Nonnull  String name) {
 		actionType = ActionType.DROPLET;
 		this.snapshotName = name;
 	}
@@ -40,17 +43,21 @@ public class Snapshot extends DigitalOceanPostAction {
 	}
 	
 	@Override
-	public JSONObject getParameters() throws CloudException, JSONException {
-		JSONObject j =getDefaultJSON();
+	public JSONObject getParameters() throws InternalException {
+		JSONObject j = getDefaultJSON();
 		if (snapshotName == null) {
-			throw new CloudException("Snapshot name must be defined");
+			throw new InternalException("Snapshot name must be defined");
 		}
 		if (snapshotName.isEmpty()) {
-			throw new CloudException("Snapshot name must not be empty");
+			throw new InternalException("Snapshot name must not be empty");
 		}
-		
-		j.put("name",  snapshotName);
-		return j;
+
+        try {
+            j.put("name",  snapshotName);
+        }
+        catch( JSONException ignore ) {
+        }
+        return j;
 	}
 	
 }

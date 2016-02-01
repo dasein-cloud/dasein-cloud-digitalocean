@@ -20,9 +20,7 @@
 package org.dasein.cloud.digitalocean.identity;
 
 import org.apache.log4j.Logger;
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.*;
 import org.dasein.cloud.digitalocean.DigitalOcean;
 import org.dasein.cloud.digitalocean.models.Key;
 import org.dasein.cloud.digitalocean.models.Keys;
@@ -90,7 +88,7 @@ public class Keypairs extends AbstractShellKeySupport<DigitalOcean> {
                 return null; // not found
             }
             logger.error(e.getMessage());
-            throw new CloudException(e);
+            throw e;
         }
         finally {
             APITrace.end();
@@ -111,19 +109,19 @@ public class Keypairs extends AbstractShellKeySupport<DigitalOcean> {
         try {
             String regionId = getContext().getRegionId();
             if( regionId == null ) {
-                throw new CloudException("No region was set for this request.");
+                throw new InternalException("No region was set for this request.");
             }
 
             Create action = new Create(name, publicKey);
 
-            Key k = (Key)DigitalOceanModelFactory.performAction(getProvider(), action, org.dasein.cloud.digitalocean.models.rest.DigitalOcean.KEY);
+            Key k = (Key) DigitalOceanModelFactory.performAction(getProvider(), action, org.dasein.cloud.digitalocean.models.rest.DigitalOcean.KEY);
 
             SSHKeypair kp = toSSHKeypair(k);
             if( kp != null ) {
                 return kp;
             }
             else {
-                throw new CloudException("Unable to import keypair "+name);
+                throw new GeneralCloudException("Unable to import keypair "+name, CloudErrorType.GENERAL);
             }
         }
         finally {

@@ -20,20 +20,15 @@
 package org.dasein.cloud.digitalocean.compute;
 
 import org.apache.log4j.Logger;
-import org.dasein.cloud.AsynchronousTask;
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.OperationNotSupportedException;
-import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.Tag;
+import org.dasein.cloud.*;
 import org.dasein.cloud.compute.*;
 import org.dasein.cloud.digitalocean.DigitalOcean;
 import org.dasein.cloud.digitalocean.models.Action;
 import org.dasein.cloud.digitalocean.models.Droplet;
 import org.dasein.cloud.digitalocean.models.Image;
 import org.dasein.cloud.digitalocean.models.Images;
-import org.dasein.cloud.digitalocean.models.actions.image.Destroy;
 import org.dasein.cloud.digitalocean.models.actions.droplet.Snapshot;
+import org.dasein.cloud.digitalocean.models.actions.image.Destroy;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory;
 import org.dasein.cloud.identity.ServiceAction;
 import org.dasein.cloud.util.APITrace;
@@ -47,11 +42,7 @@ import org.dasein.util.uom.time.TimePeriod;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static org.dasein.cloud.digitalocean.models.rest.DigitalOceanModelFactory.*;
 
@@ -104,13 +95,13 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
                 catch( InterruptedException e ) {
                 }
                 if( action.isError() ) {
-                    throw new CloudException(action.getStatus());
+                    throw new GeneralCloudException(action.getStatus(), CloudErrorType.GENERAL);
                 }
                 action = DigitalOceanModelFactory.getEventById(getProvider(), action.getId());
             }
             droplet = DigitalOceanModelFactory.getDropletByInstance(getProvider(), options.getVirtualMachineId());
             // create a new list as Arrays.asList returns an unmodifiable list
-            List<String> newSnapshotIds = new ArrayList<String>();
+            List<String> newSnapshotIds = new ArrayList<>();
             newSnapshotIds.addAll(Arrays.asList(droplet.getSnapshotIds()));
             newSnapshotIds.removeAll(previousSnapshotIds);
 
@@ -123,7 +114,7 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
                 }
             }
             // not found any snapshot :-/
-            throw new CloudException("Unable to create or find the captured image for VM "+options.getVirtualMachineId());
+            throw new GeneralCloudException("Unable to create or find the captured image for VM "+options.getVirtualMachineId(), CloudErrorType.GENERAL);
         }
         finally {
             APITrace.end();
@@ -134,8 +125,8 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
     public @Nonnull Iterable<MachineImage> searchImages(String accountNumber, String keyword, Platform platform, Architecture architecture, ImageClass... imageClasses) throws CloudException, InternalException {
         APITrace.begin(getProvider(), "Image.searchImages");
         try {
-            List<MachineImage> results = new ArrayList<MachineImage>();
-            Collection<MachineImage> images = new ArrayList<MachineImage>();
+            List<MachineImage> results = new ArrayList<>();
+            Collection<MachineImage> images = new ArrayList<>();
             if (accountNumber == null) {
                 images.addAll((Collection<MachineImage>) searchPublicImages(ImageFilterOptions.getInstance()));
             }
@@ -185,7 +176,7 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
         try {
             final String regionId = getContext().getRegionId();
             if( regionId == null ) {
-                throw new CloudException("No region was set for this request");
+                throw new InternalException("No region was set for this request");
             }
 
             Architecture architecture = options.getArchitecture();
@@ -246,10 +237,6 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
             }
             cache.put(getContext(), results);
             return results;
-        }
-        catch (Throwable e) {
-            logger.error(e.getMessage());
-            throw new CloudException(e);
         } finally {
             APITrace.end();
         }
@@ -410,10 +397,6 @@ public class DOImage extends AbstractImageSupport<DigitalOcean> {
             }
 
             return results;
-        }
-        catch (Exception e) {
-            logger.error(e.getMessage());
-            throw new CloudException(e);
         }
         finally {
             APITrace.end();

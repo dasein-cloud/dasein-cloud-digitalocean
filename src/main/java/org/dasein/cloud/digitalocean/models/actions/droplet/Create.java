@@ -38,23 +38,21 @@
  */
 package org.dasein.cloud.digitalocean.models.actions.droplet;
 
-import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanPostAction;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-
 
 public class Create extends DigitalOceanPostAction {	
 
 	//Required
-	String name = "";
-	String size = null;
-	String image = null;	
-	String region = null;
+	private String name = "";
+	private String size = null;
+	private String image = null;
+	private String region = null;
 	
 	//Optional
 	boolean ipv6 = false;
@@ -70,13 +68,6 @@ public class Create extends DigitalOceanPostAction {
 		this.region = region_slug_or_id;		
 	}	
 	
-	public Create(String dropletName, Integer sizeId, int theImageId, Long regionId) {
-		this.name = dropletName;
-		this.image = String.valueOf(theImageId);
-		this.size = String.valueOf(sizeId);
-		this.region = String.valueOf(regionId);
-	}
-
 	public void setSshKeyIds(List<String> keyIds) {
 		ssh_key_ids.clear();
 		ssh_key_ids.addAll(keyIds);
@@ -86,56 +77,49 @@ public class Create extends DigitalOceanPostAction {
 		this.private_networking = b;		
 	}
 	
-	public boolean getPrivateNetworking() {		
-		return this.private_networking;		
-	}
-	
-	public void setBackups(boolean enabled) {		
+	public void setBackups(boolean enabled) {
 		this.backups_enabled = enabled;		
 	}
 	
-	public boolean getBackupsEnabled() {		
-		return this.backups_enabled;		
-	}
-
 	public void setUserdata(String userdata){this.userdata = userdata;}
 
-	public String getUserdata(){return this.userdata;}
-
-	public JSONObject getParameters() throws CloudException, JSONException {
+	public JSONObject getParameters() throws InternalException {
 		JSONObject postData = new JSONObject();
+		try {
+			if( this.name == null ) {
+				throw new InternalException("Missing required parameter 'name'");
+			}
+			postData.put("name", this.name);
 
-		if (this.name == null) {
-			throw new CloudException("Missing required parameter 'name'");
-		}
-		postData.put("name",  this.name);
-		
-		if (this.size == null) {
-			throw new CloudException("Missing required parameter 'size' for 'id' or 'slug' value");
-		}		
-		postData.put("size",  this.size);
-		
-		if (this.image == null) {
-			throw new CloudException("Missing required parameter image for 'id' or 'slug' value");
-		}
-		
-		postData.put("image",  this.image);
-		
-		if (this.region == null) {
-			throw new CloudException("Missing required parameter 'region' for 'id' or 'slug' value");
-		}		
-		
-		postData.put("region",  this.region);
-		
-		if (this.ssh_key_ids != null && !this.ssh_key_ids.isEmpty()) {
-            postData.put("ssh_keys", this.ssh_key_ids);
-		}
+			if( this.size == null ) {
+				throw new InternalException("Missing required parameter 'size' for 'id' or 'slug' value");
+			}
+			postData.put("size", this.size);
 
-		postData.put("private_networking", this.private_networking);			
-		postData.put("backups", this.backups_enabled);
-		postData.put("ipv6", this.ipv6);
-		if(this.userdata != null && !this.userdata.equals(""))postData.put("user_data", this.userdata);
-			
+			if( this.image == null ) {
+				throw new InternalException("Missing required parameter image for 'id' or 'slug' value");
+			}
+
+			postData.put("image", this.image);
+
+			if( this.region == null ) {
+				throw new InternalException("Missing required parameter 'region' for 'id' or 'slug' value");
+			}
+
+			postData.put("region", this.region);
+
+			if( this.ssh_key_ids != null && !this.ssh_key_ids.isEmpty() ) {
+				postData.put("ssh_keys", this.ssh_key_ids);
+			}
+
+			postData.put("private_networking", this.private_networking);
+			postData.put("backups", this.backups_enabled);
+			postData.put("ipv6", this.ipv6);
+			if( this.userdata != null && !this.userdata.equals("") ) postData.put("user_data", this.userdata);
+
+		} catch (JSONException ignore) {
+		 	// JSONObject#put only throws a JSONException if the first parameter is null. We know it's not null here.
+		}
 		return postData;
 	}
 	

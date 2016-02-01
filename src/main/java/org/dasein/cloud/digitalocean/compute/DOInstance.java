@@ -66,11 +66,11 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
             VirtualMachine vm = getVirtualMachine(virtualMachineId);
 
             if (!getCapabilities().canAlter(vm.getCurrentState())) {
-                throw new CloudException("Droplet is currently " + vm.getCurrentState() + ". Please power it off to run this event.");
+                throw new InvalidStateException("Droplet is currently " + vm.getCurrentState() + ". Please power it off to run this event.");
             }
 
             if (vm.getProductId().compareTo(productId) == 0) {
-                throw new CloudException("Product Id must differ from current vm product id");
+                throw new InternalException("Product Id must differ from current vm product id");
             }
 
             Resize action = new Resize(productId);
@@ -78,9 +78,6 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
             DigitalOceanModelFactory.performAction(getProvider(), action, virtualMachineId);
             vm = getVirtualMachine(virtualMachineId);
             return vm;
-        } catch( CloudException e ) {
-            logger.error(e.getMessage());
-            throw new CloudException(e);
         } finally {
             APITrace.end();
         }
@@ -131,15 +128,12 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
             waitForAllDropletEventsToComplete(instanceId, 5);
             VirtualMachine vm = getVirtualMachine(instanceId);
             if( vm == null ) {
-                throw new CloudException("No such instance: " + instanceId);
+                throw new ResourceNotFoundException("instance", instanceId);
             }
             // only start if droplet is stopped, otherwise DO will give us an error
             if( VmState.STOPPED.equals(vm.getCurrentState() ) ) {
                 DigitalOceanModelFactory.performAction(getProvider(), new Start(), instanceId);
             }
-        } catch( CloudException e ) {
-            logger.error(e.getMessage());
-            throw new CloudException(e);
         } finally {
             APITrace.end();
         }
@@ -185,7 +179,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
                 return null;
             }
             logger.error(e.getMessage());
-            throw new CloudException(e);
+            throw e;
         } finally {
             APITrace.end();
         }
@@ -247,7 +241,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         }
         else {
             logger.error("No product could be found, " + getProvider().getCloudName() + " provided no data for their sizes API.");
-            throw new CloudException("No product could be found.");
+            throw new GeneralCloudException("No product could be found.", CloudErrorType.GENERAL);
         }
         return list;
     }
@@ -257,14 +251,14 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         MachineImage image = getProvider().getComputeServices().getImageSupport().getImage(machineImageId);
         //check the requested image existence
         if( image == null ) {
-            throw new CloudException("Image " + machineImageId + " could not be found");
+            throw new ResourceNotFoundException("machine image", machineImageId);
         }
         // load product cache
         Cache<VirtualMachineProduct> cache = Cache.getInstance(getProvider(), "products", VirtualMachineProduct.class, CacheLevel.REGION, new TimePeriod<Day>(1, TimePeriod.DAY));
         Iterable<VirtualMachineProduct> products = cache.get(getContext());
         // if no cache exists lets create and load it
         if( products == null || !products.iterator().hasNext() ) {
-            List<VirtualMachineProduct> list = new ArrayList<VirtualMachineProduct>();
+            List<VirtualMachineProduct> list = new ArrayList<>();
             //Perform DigitalOcean query
             Sizes availableSizes = (Sizes)DigitalOceanModelFactory.getModel(getProvider(), org.dasein.cloud.digitalocean.models.rest.DigitalOcean.SIZES);
             if (availableSizes != null) {
@@ -280,11 +274,11 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
             }
             else {
                 logger.error("No product could be found, " + getProvider().getCloudName() + " provided no data for their sizes API.");
-                throw new CloudException("No product could be found.");
+                throw new GeneralCloudException("No product could be found.", CloudErrorType.GENERAL);
             }
         }
         //resulting list filtered for the selected image
-        List<VirtualMachineProduct> results = new ArrayList<VirtualMachineProduct>();
+        List<VirtualMachineProduct> results = new ArrayList<>();
         for (VirtualMachineProduct product : products) {
             //only the products with enough disk size returned
             if(  product.getRootVolumeSize().longValue() >= image.getMinimumDiskSizeGb() ){
@@ -298,13 +292,9 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
     public @Nonnull VirtualMachine launch(@Nonnull VMLaunchOptions cfg) throws CloudException, InternalException {
         APITrace.begin(getProvider(), "launchVM");
         try {
-            ProviderContext ctx = getProvider().getContext();
-            if( ctx == null ) {
-                throw new CloudException("No context was established for this request");
-            }
             MachineImage img = getProvider().getComputeServices().getImageSupport().getMachineImage(cfg.getMachineImageId());
             if( img == null ) {
-                throw new InternalException("No such machine image: " + cfg.getMachineImageId());
+                throw new ResourceNotFoundException("machine image", cfg.getMachineImageId());
             }
 
             String hostname = cfg.getHostName();
@@ -317,10 +307,11 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
                 throw new InternalException("No product defined as part of launch options.");
             }
 
+            // DC and region are the same thing
             String regionId = cfg.getDataCenterId();
             if( regionId == null ) {
-                if (ctx.getRegionId() != null) {
-                    regionId = ctx.getRegionId();
+                if (getContext().getRegionId() != null) {
+                    regionId = getContext().getRegionId();
                 } else {
                     throw new InternalException("No region defined as part of launch options.");
                 }
@@ -328,7 +319,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
 
             Map<String, Object> extraParams = null;
             if(cfg.getUserData() != null && !cfg.getUserData().equals("")){
-                extraParams = new HashMap<String, Object>();
+                extraParams = new HashMap<>();
                 extraParams.put("user_data", cfg.getUserData());
             }
 
@@ -427,7 +418,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
             waitForAllDropletEventsToComplete(instanceId, 5);
             VirtualMachine vm = getVirtualMachine(instanceId);
             if( vm == null ) {
-                throw new CloudException("No such instance: " + instanceId);
+                throw new ResourceNotFoundException("instance", instanceId);
             }
             // only stop if droplet is running, otherwise DO will give us an error
             if( VmState.RUNNING.equals(vm.getCurrentState() ) ) {
@@ -444,7 +435,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         try {
             VirtualMachine vm = getVirtualMachine(instanceId);
             if( vm == null ) {
-                throw new CloudException("No such instance: " + instanceId);
+                throw new ResourceNotFoundException("instance", instanceId);
             }
             // only reboot if droplet is running, otherwise DO will give us an error
             if( VmState.RUNNING.equals(vm.getCurrentState() ) ) {
@@ -460,7 +451,7 @@ public class DOInstance extends AbstractVMSupport<DigitalOcean> {
         APITrace.begin(getProvider(), "terminateVM");
         try {
             if( getVirtualMachine(instanceId) == null ) {
-                throw new CloudException("No such instance found: " + instanceId);
+                throw new ResourceNotFoundException("No such instance found: ", instanceId);
             }
             DigitalOceanModelFactory.performAction(getProvider(), new Destroy(), instanceId);
         } finally {

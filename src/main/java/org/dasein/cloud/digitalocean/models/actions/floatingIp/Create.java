@@ -1,6 +1,6 @@
 package org.dasein.cloud.digitalocean.models.actions.floatingIp;
 
-import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.dasein.cloud.digitalocean.models.rest.DigitalOceanPostAction;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -30,13 +30,17 @@ public class Create extends DigitalOceanPostAction {
         return "v2/floating_ips";
     }
 
-    public JSONObject getParameters() throws CloudException, JSONException {
+    public JSONObject getParameters() throws InternalException {
         JSONObject postData = new JSONObject();
 
         if (this.region == null) {
-            throw new CloudException("Missing required parameter 'region'");
+            throw new InternalException("Missing required parameter 'region'");
         }
-        postData.put("region",  this.region);
+        try {
+            postData.put("region",  this.region);
+        }
+        catch( JSONException ignore ) {
+        }
 
         return postData;
     }
